@@ -128,20 +128,6 @@ Example: `i` → `c` → `e` → `c` → `5` starts the engine, puts it in 1st g
 | Fuel gauge | **Not working.** See below. |
 | Temperature gauge | Not tested |
 
-### Fuel gauge test
-
-The manual says the fuel sensor is a resistance between X271 pin 1 and pin 3. Tested with the cluster power-cycled and the needle given time to settle:
-
-| Resistance | Result |
-|---|---|
-| Open | Empty |
-| 220 Ω | Empty |
-| 110 Ω | Empty |
-| 73 Ω | Empty |
-| 0 Ω (short) | Empty |
-
-At power-on the needle jumps to full and then slowly drops to empty. With nothing connected, pin 1 only measures 0.30 V. The range between 1 and 70 Ω has not been tested yet.
-
 ## Known issues
 
 - Higher gears accelerate faster than lower gears, because the throttle drives the RPM and the speed is calculated from it.
