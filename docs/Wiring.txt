@@ -1,0 +1,50 @@
+# Wiring - BMW Z3 cluster bench setup
+Wire with USB unplugged and PSU output OFF.
+
+## Rails
+- Left  (-) = ESP32 GND   (only ESP32 things here)
+- Right (+) = PSU +12 V
+- Right (-) = PSU GND
+- Left (-) and right (-) must NEVER be connected.
+
+## Cluster power
+- X16 pin 22  -> right (+)
+- X16 pin 23  -> right (+)
+- X17 pin 4   -> right (+)
+- X17 pin 16  -> right (+)
+- X16 pin 24  -> right (-)
+- X17 pin 3   -> right (-)
+- X16 pin 13 <-> X16 pin 25 (bridge)
+
+## 4N35 pinout (dot = pin 1, top left)
+  pin 1 | o     | pin 6
+  pin 2 |       | pin 5
+  pin 3 |       | pin 4
+  ESP32 side    12 V side
+
+## 4N35 #1 - Tachometer
+- pin 1 -> 220 ohm -> GPIO 18
+- pin 2 -> left (-)  ESP32 GND
+- pin 3 -> nothing
+- pin 4 -> right (-) PSU GND
+- pin 5 -> X16 pin 20  AND  1 kohm -> right (+)
+- pin 6 -> nothing
+
+## 4N35 #2 - Speedometer
+- pin 1 -> 220 ohm -> GPIO 19
+- pin 2 -> left (-)  ESP32 GND
+- pin 3 -> nothing
+- pin 4 -> right (-) PSU GND
+- pin 5 -> X271 pin 4   (no pull-up, the cluster has one inside)
+- pin 6 -> nothing
+
+## Continuity check before power-up
+- left (-)  <-> right (-)   : NO beep
+- left (-)  <-> right (+)   : NO beep
+- right (+) <-> right (-)   : NO beep
+- X16 pin 24 / X17 pin 3 <-> right (-) : beep
+- each 4N35 pin 4 <-> right (-)        : beep
+
+## Power-up order
+1. PSU on (12 V, 0.5 A) without USB -> current > 0 A, odometer on
+2. Plug in USB -> current must NOT change

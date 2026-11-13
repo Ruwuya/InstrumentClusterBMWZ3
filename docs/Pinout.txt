@@ -1,0 +1,64 @@
+[tested] = confirmed on the bench
+[ETM]    = from the manual (e50110.pdf), not tested yet
+[no bulb] = bulb missing in the cluster
+
+# X16
+## Power
+- Pin 22 = +12V (permanent, terminal 30) [tested]
+- Pin 23 = +12V (supply for warning lights) [tested]
+- Pin 24 = Ground (cluster electronics) [tested]
+- Pin 13 + Pin 25 = CAN jumper, bridge them together [tested]
+
+## Signal
+- Pin 20 = Tachometer (4N35, 1k pull-up to +12V, f = RPM / 30) [tested]
+
+## Positive
+- Pin 1 = Highbeams [tested]
+- Pin 2 = Dial backlight [ETM]
+- Pin 3 = Right Turn Signal [tested]
+- Pin 4 = Left Turn Signal [tested]
+
+## Negative
+- Pin 14 = Airbag [ETM]
+- Pin 17 = Park Brake (P) [ETM]
+- Pin 18 = Brake Fluid (!) [ETM]
+- Pin 19 = Brake Pad Wear - reversed: light ON when pin is open [ETM]
+
+# X17
+## Power
+- Pin 3 = Ground (lights) [tested]
+- Pin 4 = +12V (cluster electronics) [tested]
+- Pin 16 = +12V (terminal R) [tested]
+
+## Signal
+- Pin 17 + Pin 18 = Coolant temp sensor (resistance?) [ETM]
+
+## Positive
+- Pin 1 = Trailer Turn Signal [ETM]
+- Pin 8 = Fog Lights [tested]
+
+## Negative
+- Pin 6 = Check Battery [ETM, has bulb]
+- Pin 12 = ASC (traction control) [ETM]
+- Pin 14 = Seatbelt [ETM]
+- Pin 19 = Oil Pressure [ETM, has bulb]
+- Pin 21 = ABS [no bulb]
+
+# X271
+## Signal
+- Pin 1 = Fuel level sensor (resistance between pin 1 and pin 3) [ETM]
+          NOT WORKING: open, 220, 73 and 0 ohm all settle on empty.
+          Only 0.30 V on pin 1 with nothing connected (expected several volts).
+          At power-on the needle jumps to full, then slowly drops to empty.
+- Pin 3 = Sensor ground (fuel + speed sensor) [ETM]
+- Pin 4 = Speedometer (4N35, no pull-up, f = km/h x 1.25) [tested]
+
+# Calibration
+- Tacho:  f = RPM / 30     (100 Hz = 3000 RPM)
+- Speedo: f = km/h x 1.25  (50 Hz = 40 km/h / 25 mph, 100 Hz = just over 80 km/h / 50 mph)
+          f = mph x 2
+
+# Unknown pins
+- Rear Fog Lights = has bulb, pin not found yet (EU-only, not in the ETM)
+  Find it: continuity from the bulb socket to the "not used" pins
+  (X16: 5, 8, 9, 10, 15, 21, 26 / X17: 7, 10, 20, 24, 26)
