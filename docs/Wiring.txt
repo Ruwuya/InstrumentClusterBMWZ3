@@ -78,6 +78,24 @@ How it works: GPIO HIGH -> 4N35 on -> gate pulled to PSU GND -> MOSFET on
 - MOSFET S   -> right (+)
 - MOSFET D   -> X16 pin 3
 
+## 4N35 #7 + IRF9540 #3 - High beam
+- 4N35 pin 1 -> 220 ohm -> GPIO 4   (the LOLIN32 Lite has no GPIO 21/23)
+- 4N35 pin 2 -> left (-)  ESP32 GND
+- 4N35 pin 4 -> right (-) PSU GND
+- 4N35 pin 5 -> MOSFET G
+- MOSFET G   -> 10 kohm -> right (+)
+- MOSFET S   -> right (+)
+- MOSFET D   -> X16 pin 1
+
+## 4N35 #8 + IRF9540 #4 - Fog lights
+- 4N35 pin 1 -> 220 ohm -> GPIO 13
+- 4N35 pin 2 -> left (-)  ESP32 GND
+- 4N35 pin 4 -> right (-) PSU GND
+- 4N35 pin 5 -> MOSFET G
+- MOSFET G   -> 10 kohm -> right (+)
+- MOSFET S   -> right (+)
+- MOSFET D   -> X17 pin 8
+
 ## ULN2803A pinout (notch at the top, pin 1 = top left)
   IN 1  | 1   18 | OUT 1
   IN 2  | 2   17 | OUT 2
@@ -116,7 +134,7 @@ pin 5 -> +12 V, pin 4 -> ULN input.
 - left (-)  <-> right (+)   : NO beep
 - right (+) <-> right (-)   : NO beep
 - X16 pin 24 / X17 pin 3 <-> right (-) : beep
-- 4N35 #1-#4 pin 4 <-> right (-)      : beep (#5, #6 pin 4 go to the ULN instead)
+- 4N35 #1-#4, #7, #8 pin 4 <-> right (-) : beep (#5, #6 pin 4 go to the ULN instead)
 - each MOSFET D <-> right (+)          : NO beep (if it beeps, D and S are swapped)
 - ULN pin 9 <-> right (-)              : beep
 
@@ -124,4 +142,13 @@ pin 5 -> +12 V, pin 4 -> ULN input.
 1. PSU on (12 V, 1 A) without USB -> current > 0 A, odometer on
 2. Plug in USB -> current must NOT change
 3. Test: ',' = left, '.' = right, 'h' = hazards (blink with the blue LED),
-   'p' = park brake (starts ON), 'a' = ASC on/off
+   'p' = park brake (starts ON), 'a' = ASC on/off,
+   'b' = high beam, 'f' = fog
+
+## Troubleshooting a light that won't turn on (light ON in the code)
+Black probe on the right ground for each side!
+- ESP GND -> GPIO pin        : ~3.3 V  (else: code/upload/wrong pin)
+- ESP GND -> 4N35 pin 1      : ~1.2 V  (3.3 V = pin 2 not on ESP GND, 0 V = 220 ohm/wire missing)
+- PSU GND -> 4N35 pin 5      : ~0.1 V  (12 V = 4N35 not switching)
+- PSU GND -> MOSFET G (leg)  : ~0.1 V  (12 V while pin 5 is low = broken wire / leg not seated)
+- PSU GND -> MOSFET D        : ~12 V   (0 V = G/D/S wrong or S not on +12 V)

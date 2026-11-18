@@ -18,6 +18,10 @@ const int PIN_LEFT_SIGNAL = 16;
 const int PIN_RIGHT_SIGNAL = 17;
 const int PIN_LED = 22;  // built-in LED on the LOLIN32 Lite, lights up when the pin is LOW
 
+// Other lights switched to +12 V (4N35 + IRF9540)
+const int PIN_HIGH_BEAM = 4;   // -> X16 pin 1 (the LOLIN32 Lite has no GPIO 21)
+const int PIN_FOG = 13;        // -> X17 pin 8
+
 // Warning lights switched to ground (4N35 + ULN2803A)
 const int PIN_PARK_BRAKE = 25;  // -> X16 pin 17
 const int PIN_ASC = 27;         // -> X17 pin 12
@@ -75,6 +79,8 @@ bool blinkOn = false;                // the current half of the blink: lit or da
 unsigned long lastBlink = 0;
 
 bool parkBrake = true;               // the car starts parked, toggled with 'p'
+bool highBeam = false;               // toggled with 'b'
+bool fogLights = false;              // toggled with 'f'
 
 // ASC (traction control)
 const int ASC_SPIN_THROTTLE = 7;     // this much throttle in 1st or reverse spins the wheels
@@ -231,6 +237,16 @@ void toggleParkBrake() {
   Serial.println(parkBrake ? "Park brake on" : "Park brake off");
 }
 
+void toggleHighBeam() {
+  highBeam = !highBeam;
+  Serial.println(highBeam ? "High beam on" : "High beam off");
+}
+
+void toggleFog() {
+  fogLights = !fogLights;
+  Serial.println(fogLights ? "Fog lights on" : "Fog lights off");
+}
+
 void toggleAsc() {
   ascEnabled = !ascEnabled;
   Serial.println(ascEnabled ? "ASC on" : "ASC off - no traction control");
@@ -253,6 +269,7 @@ void printHelp() {
   Serial.println("           0-9 = throttle (0 off, 9 full)");
   Serial.println("           , = left signal . = right signal   h = hazards");
   Serial.println("           p = park brake  a = ASC on/off");
+  Serial.println("           b = high beam   f = fog lights");
   Serial.println("Commands:  :rpm 3000    set the tacho directly");
   Serial.println("           :speed 80    set the speedometer directly (km/h)");
   Serial.println("           :auto        back to the simulation");
@@ -344,6 +361,8 @@ void readSerial() {
       case 'h': toggleHazards(); break;
       case 'p': toggleParkBrake(); break;
       case 'a': toggleAsc(); break;
+      case 'b': toggleHighBeam(); break;
+      case 'f': toggleFog(); break;
       case '?': printHelp(); break;
     }
   }
@@ -428,6 +447,10 @@ void updateLights(unsigned long now) {
   digitalWrite(PIN_RIGHT_SIGNAL, rightOn ? HIGH : LOW);
   digitalWrite(PIN_LED, (leftOn || rightOn) ? LOW : HIGH);  // LOW = LED on
 
+  // HIGH -> 4N35 on -> MOSFET on -> +12 V to the cluster pin -> light on
+  digitalWrite(PIN_HIGH_BEAM, highBeam ? HIGH : LOW);
+  digitalWrite(PIN_FOG, fogLights ? HIGH : LOW);
+
   // HIGH -> 4N35 on -> ULN2803A pulls the cluster pin to ground -> light on
   digitalWrite(PIN_PARK_BRAKE, parkBrake ? HIGH : LOW);
 
@@ -449,17 +472,19 @@ void printStatus() {
   // Only shown when something is on
   const char* brake = parkBrake ? " | (P)" : "";
   const char* asc = !ascEnabled ? " | ASC off" : (ascWorking ? " | ASC working" : "");
+  const char* beam = highBeam ? " | high beam" : "";
+  const char* fog = fogLights ? " | fog" : "";
 
   if (manualMode) {
-    Serial.printf("[manual] %.0f RPM | %.0f km/h | signal %s%s%s\n",
-                  rpm, kmh, signalName(), brake, asc);
+    Serial.printf("[manual] %.0f RPM | %.0f km/h | signal %s%s%s%s%s\n",
+                  rpm, kmh, signalName(), brake, asc, beam, fog);
     return;
   }
-  Serial.printf("%s | gear %s | clutch %s | throttle %d | %.0f RPM | %.0f km/h | signal %s%s%s\n",
+  Serial.printf("%s | gear %s | clutch %s | throttle %d | %.0f RPM | %.0f km/h | signal %s%s%s%s%s\n",
                 engineRunning ? "engine on" : "engine off",
                 gearName(gear),
                 clutchPressed ? "in" : "out",
-                throttle, rpm, kmh, signalName(), brake, asc);
+                throttle, rpm, kmh, signalName(), brake, asc, beam, fog);
 }
 
 // ============================================================
@@ -482,8 +507,11 @@ void setup() {
 
   pinMode(PIN_PARK_BRAKE, OUTPUT);
   pinMode(PIN_ASC, OUTPUT);
+  pinMode(PIN_HIGH_BEAM, OUTPUT);
+  pinMode(PIN_FOG, OUTPUT);
 
   printHelp();
+  Serial.printf("Lights: high beam GPIO %d, fog GPIO %d\n", PIN_HIGH_BEAM, PIN_FOG);
   Serial.println("Engine off - press 'i' to start");
 }
 
