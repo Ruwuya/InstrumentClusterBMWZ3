@@ -20,7 +20,7 @@
 
 ## Negative
 - Pin 14 = Airbag [ETM]
-- Pin 17 = Park Brake (P) [ETM]
+- Pin 17 = Park Brake (P) [tested]
 - Pin 18 = Brake Fluid (!) [ETM]
 - Pin 19 = Brake Pad Wear - reversed: light ON when pin is open [ETM]
 
@@ -39,7 +39,7 @@
 
 ## Negative
 - Pin 6 = Check Battery [ETM, has bulb]
-- Pin 12 = ASC (traction control) [ETM]
+- Pin 12 = ASC (traction control) [tested]
 - Pin 14 = Seatbelt [ETM]
 - Pin 19 = Oil Pressure [ETM, has bulb]
 - Pin 21 = ABS [no bulb]

@@ -38,13 +38,90 @@ Wire with USB unplugged and PSU output OFF.
 - pin 5 -> X271 pin 4   (no pull-up, the cluster has one inside)
 - pin 6 -> nothing
 
+## IRF9540 pinout (P-MOSFET, text facing you, legs down)
+  G  D  S
+  1  2  3
+- G = Gate   (on/off control)
+- D = Drain  (out to the light)
+- S = Source (from +12 V)
+- The metal tab is connected to D - keep it away from other parts.
+- Each leg in its own breadboard row.
+
+## Light switched to +12 V (4N35 + IRF9540)
+How it works: GPIO HIGH -> 4N35 on -> gate pulled to PSU GND -> MOSFET on
+-> +12 V to the cluster pin -> light on. The 10 kohm keeps the gate at
++12 V (MOSFET off) when the 4N35 is off.
+
+  (+) rail ----+-----------+
+               |           |
+             10 kohm      wire
+               |           |
+  4N35 pin 5 - G     D     S
+                     |
+                cluster pin
+
+## 4N35 #3 + IRF9540 #1 - Left turn signal
+- 4N35 pin 1 -> 220 ohm -> GPIO 16
+- 4N35 pin 2 -> left (-)  ESP32 GND
+- 4N35 pin 4 -> right (-) PSU GND
+- 4N35 pin 5 -> MOSFET G
+- MOSFET G   -> 10 kohm -> right (+)
+- MOSFET S   -> right (+)
+- MOSFET D   -> X16 pin 4
+
+## 4N35 #4 + IRF9540 #2 - Right turn signal
+- 4N35 pin 1 -> 220 ohm -> GPIO 17
+- 4N35 pin 2 -> left (-)  ESP32 GND
+- 4N35 pin 4 -> right (-) PSU GND
+- 4N35 pin 5 -> MOSFET G
+- MOSFET G   -> 10 kohm -> right (+)
+- MOSFET S   -> right (+)
+- MOSFET D   -> X16 pin 3
+
+## ULN2803A pinout (notch at the top, pin 1 = top left)
+  IN 1  | 1   18 | OUT 1
+  IN 2  | 2   17 | OUT 2
+  ...   |  ...   | ...
+  IN 8  | 8   11 | OUT 8
+  GND   | 9   10 | COM
+- IN 1 (pin 1) controls OUT 1 (pin 18), IN 2 controls OUT 2 (pin 17), etc.
+- pin 9  -> right (-) PSU GND
+- pin 10 -> right (+) +12 V
+
+## Light switched to ground (4N35 + ULN2803A channel)
+How it works: GPIO HIGH -> 4N35 on -> +12 V to the ULN input -> ULN pulls
+the cluster pin to ground -> light on. The 10 kohm keeps the ULN input at
+ground (light off) when the 4N35 is off.
+NOTE: the 4N35 is flipped compared to the MOSFET lights:
+pin 5 -> +12 V, pin 4 -> ULN input.
+
+## 4N35 #5 + ULN channel 1 - Park brake (P)
+- 4N35 pin 1 -> 220 ohm -> GPIO 25
+- 4N35 pin 2 -> left (-)  ESP32 GND
+- 4N35 pin 5 -> right (+) +12 V
+- 4N35 pin 4 -> ULN pin 1 (IN 1)
+- ULN pin 1  -> 10 kohm -> right (-)
+- ULN pin 18 (OUT 1) -> X16 pin 17
+
+## 4N35 #6 + ULN channel 2 - ASC
+- 4N35 pin 1 -> 220 ohm -> GPIO 27
+- 4N35 pin 2 -> left (-)  ESP32 GND
+- 4N35 pin 5 -> right (+) +12 V
+- 4N35 pin 4 -> ULN pin 2 (IN 2)
+- ULN pin 2  -> 10 kohm -> right (-)
+- ULN pin 17 (OUT 2) -> X17 pin 12
+
 ## Continuity check before power-up
 - left (-)  <-> right (-)   : NO beep
 - left (-)  <-> right (+)   : NO beep
 - right (+) <-> right (-)   : NO beep
 - X16 pin 24 / X17 pin 3 <-> right (-) : beep
-- each 4N35 pin 4 <-> right (-)        : beep
+- 4N35 #1-#4 pin 4 <-> right (-)      : beep (#5, #6 pin 4 go to the ULN instead)
+- each MOSFET D <-> right (+)          : NO beep (if it beeps, D and S are swapped)
+- ULN pin 9 <-> right (-)              : beep
 
 ## Power-up order
-1. PSU on (12 V, 0.5 A) without USB -> current > 0 A, odometer on
+1. PSU on (12 V, 1 A) without USB -> current > 0 A, odometer on
 2. Plug in USB -> current must NOT change
+3. Test: ',' = left, '.' = right, 'h' = hazards (blink with the blue LED),
+   'p' = park brake (starts ON), 'a' = ASC on/off

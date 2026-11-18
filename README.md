@@ -96,6 +96,8 @@ Serial monitor at **115200 baud**. Single keys act straight away. Commands start
 | `,` | Left turn signal on/off |
 | `.` | Right turn signal on/off |
 | `h` | Hazards on/off |
+| `p` | Park brake on/off (starts on) |
+| `a` | ASC on/off (light flashes on wheelspin, solid when off) |
 | `?` | Help |
 
 | Command | Action |
@@ -123,8 +125,10 @@ Example: `i` → `c` → `e` → `c` → `5` starts the engine, puts it in 1st g
 | Speedometer | Working, calibrated |
 | Engine / gearbox simulation | Working |
 | UART keys and commands | Working |
-| Turn signals, high beam, fog | Pins found and tested with +12 V by hand. Waiting for parts. |
-| ASC, park brake (P) | Pins from the manual. Waiting for parts. |
+| Turn signals + hazards | Working (4N35 + IRF9540) |
+| High beam, fog | Pins found and tested with +12 V by hand. Parts arrived, not wired yet. |
+| Park brake (P) | Working (4N35 + ULN2803A) |
+| ASC | Working: solid when switched off, flashes and cuts power on wheelspin |
 | Fuel gauge | **Not working.** See below. |
 | Temperature gauge | Not tested |
 

@@ -18,6 +18,10 @@ const int PIN_LEFT_SIGNAL = 16;
 const int PIN_RIGHT_SIGNAL = 17;
 const int PIN_LED = 22;  // built-in LED on the LOLIN32 Lite, lights up when the pin is LOW
 
+// Warning lights switched to ground (4N35 + ULN2803A)
+const int PIN_PARK_BRAKE = 25;  // -> X16 pin 17
+const int PIN_ASC = 27;         // -> X17 pin 12
+
 // ============================================================
 //  Calibration and car model
 // ============================================================
@@ -69,6 +73,15 @@ TurnSignal turnSignal = SIGNAL_OFF;  // the stalk: off, left or right
 bool hazards = false;                // the hazard button, works on top of the stalk
 bool blinkOn = false;                // the current half of the blink: lit or dark
 unsigned long lastBlink = 0;
+
+bool parkBrake = true;               // the car starts parked, toggled with 'p'
+
+// ASC (traction control)
+const int ASC_SPIN_THROTTLE = 7;     // this much throttle in 1st or reverse spins the wheels
+const int ASC_MAX_THROTTLE = 5;      // ASC cuts the engine back to this while it's working
+const unsigned long ASC_FLASH_MS = 150;  // fast flash while ASC is working
+bool ascEnabled = true;              // the ASC button, toggled with 'a'
+bool ascWorking = false;             // true while ASC is catching a wheelspin
 
 // ============================================================
 //  Timers
@@ -213,6 +226,22 @@ void toggleHazards() {
   }
 }
 
+void toggleParkBrake() {
+  parkBrake = !parkBrake;
+  Serial.println(parkBrake ? "Park brake on" : "Park brake off");
+}
+
+void toggleAsc() {
+  ascEnabled = !ascEnabled;
+  Serial.println(ascEnabled ? "ASC on" : "ASC off - no traction control");
+}
+
+// Too much throttle in a low gear with the clutch out: the rear wheels spin
+bool wheelsSpinning() {
+  bool lowGear = gear == 1 || gear == -1;
+  return engineRunning && !clutchPressed && lowGear && throttle >= ASC_SPIN_THROTTLE;
+}
+
 // ============================================================
 //  Serial input
 // ============================================================
@@ -223,6 +252,7 @@ void printHelp() {
   Serial.println("           e = gear up     q = gear down (clutch must be in)");
   Serial.println("           0-9 = throttle (0 off, 9 full)");
   Serial.println("           , = left signal . = right signal   h = hazards");
+  Serial.println("           p = park brake  a = ASC on/off");
   Serial.println("Commands:  :rpm 3000    set the tacho directly");
   Serial.println("           :speed 80    set the speedometer directly (km/h)");
   Serial.println("           :auto        back to the simulation");
@@ -312,6 +342,8 @@ void readSerial() {
       case ',': toggleTurnSignal(SIGNAL_LEFT); break;
       case '.': toggleTurnSignal(SIGNAL_RIGHT); break;
       case 'h': toggleHazards(); break;
+      case 'p': toggleParkBrake(); break;
+      case 'a': toggleAsc(); break;
       case '?': printHelp(); break;
     }
   }
@@ -324,8 +356,20 @@ void readSerial() {
 // One simulation step: engine RPM and road speed
 void updateEngine() {
   // Engine: moves towards the RPM the throttle asks for
+  // ASC: on a wheelspin it cuts the engine power, but only when it's switched on
+  bool spinning = wheelsSpinning() && ascEnabled;
+  if (spinning && !ascWorking) {
+    Serial.println("ASC: wheelspin - cutting power");
+  }
+  ascWorking = spinning;
+
+  int effectiveThrottle = throttle;
+  if (ascWorking) {
+    effectiveThrottle = min(throttle, ASC_MAX_THROTTLE);
+  }
+
   if (engineRunning) {
-    float targetRpm = IDLE_RPM + (MAX_RPM - IDLE_RPM) * throttle / 9.0f;
+    float targetRpm = IDLE_RPM + (MAX_RPM - IDLE_RPM) * effectiveThrottle / 9.0f;
 
     if (rpm < targetRpm) {
       rpm = min(rpm + RPM_RISE, targetRpm);
@@ -383,6 +427,14 @@ void updateLights(unsigned long now) {
   digitalWrite(PIN_LEFT_SIGNAL, leftOn ? HIGH : LOW);
   digitalWrite(PIN_RIGHT_SIGNAL, rightOn ? HIGH : LOW);
   digitalWrite(PIN_LED, (leftOn || rightOn) ? LOW : HIGH);  // LOW = LED on
+
+  // HIGH -> 4N35 on -> ULN2803A pulls the cluster pin to ground -> light on
+  digitalWrite(PIN_PARK_BRAKE, parkBrake ? HIGH : LOW);
+
+  // ASC light: solid when switched off, fast flash while it's working
+  bool ascFlash = (now / ASC_FLASH_MS) % 2 == 0;
+  bool ascLight = !ascEnabled || (ascWorking && ascFlash);
+  digitalWrite(PIN_ASC, ascLight ? HIGH : LOW);
 }
 
 // "off", "left", "right" or "hazards" for the status line
@@ -394,15 +446,20 @@ const char* signalName() {
 }
 
 void printStatus() {
+  // Only shown when something is on
+  const char* brake = parkBrake ? " | (P)" : "";
+  const char* asc = !ascEnabled ? " | ASC off" : (ascWorking ? " | ASC working" : "");
+
   if (manualMode) {
-    Serial.printf("[manual] %.0f RPM | %.0f km/h | signal %s\n", rpm, kmh, signalName());
+    Serial.printf("[manual] %.0f RPM | %.0f km/h | signal %s%s%s\n",
+                  rpm, kmh, signalName(), brake, asc);
     return;
   }
-  Serial.printf("%s | gear %s | clutch %s | throttle %d | %.0f RPM | %.0f km/h | signal %s\n",
+  Serial.printf("%s | gear %s | clutch %s | throttle %d | %.0f RPM | %.0f km/h | signal %s%s%s\n",
                 engineRunning ? "engine on" : "engine off",
                 gearName(gear),
                 clutchPressed ? "in" : "out",
-                throttle, rpm, kmh, signalName());
+                throttle, rpm, kmh, signalName(), brake, asc);
 }
 
 // ============================================================
@@ -422,6 +479,9 @@ void setup() {
   digitalWrite(PIN_LEFT_SIGNAL, LOW);
   digitalWrite(PIN_RIGHT_SIGNAL, LOW);
   digitalWrite(PIN_LED, HIGH);  // HIGH = LED off
+
+  pinMode(PIN_PARK_BRAKE, OUTPUT);
+  pinMode(PIN_ASC, OUTPUT);
 
   printHelp();
   Serial.println("Engine off - press 'i' to start");
