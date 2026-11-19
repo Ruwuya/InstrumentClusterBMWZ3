@@ -46,6 +46,13 @@ const float REVERSE_RATIO = 4.0f;
 
 const float COAST_DECEL = 0.1f;  // km/h lost per update while rolling freely (2 km/h per second)
 
+// Park brake
+const float PARK_BRAKE_DECEL = 0.4f;        // km/h lost per update with the brake on (8 km/h per second)
+const int PARK_BRAKE_CREEP_THROTTLE = 7;    // below this the brake beats the engine
+const float PARK_BRAKE_MAX_RPM = 1200.0f;   // the engine struggles: can't rev higher against the brake
+const float STALL_RPM = 500.0f;             // in gear below this the engine dies
+const float PARK_BRAKE_WARN_KMH = 5.0f;     // warn when moving faster than this with the brake on
+
 // ============================================================
 //  Engine
 // ============================================================
@@ -79,6 +86,7 @@ bool blinkOn = false;                // the current half of the blink: lit or da
 unsigned long lastBlink = 0;
 
 bool parkBrake = true;               // the car starts parked, toggled with 'p'
+bool parkBrakeWarned = false;        // so the "park brake is on" warning only prints once
 bool highBeam = false;               // toggled with 'b'
 bool fogLights = false;              // toggled with 'f'
 
@@ -252,10 +260,17 @@ void toggleAsc() {
   Serial.println(ascEnabled ? "ASC on" : "ASC off - no traction control");
 }
 
-// Too much throttle in a low gear with the clutch out: the rear wheels spin
+// Too much throttle in a low gear with the clutch out: the rear wheels spin.
+// Not with the park brake on - it holds the rear wheels, so they can't spin
 bool wheelsSpinning() {
   bool lowGear = gear == 1 || gear == -1;
-  return engineRunning && !clutchPressed && lowGear && throttle >= ASC_SPIN_THROTTLE;
+  return engineRunning && !clutchPressed && !parkBrake && lowGear && throttle >= ASC_SPIN_THROTTLE;
+}
+
+void stallEngine(const char* reason) {
+  engineRunning = false;
+  rpm = 0;
+  Serial.printf("Stalled - %s\n", reason);
 }
 
 // ============================================================
@@ -374,7 +389,6 @@ void readSerial() {
 
 // One simulation step: engine RPM and road speed
 void updateEngine() {
-  // Engine: moves towards the RPM the throttle asks for
   // ASC: on a wheelspin it cuts the engine power, but only when it's switched on
   bool spinning = wheelsSpinning() && ascEnabled;
   if (spinning && !ascWorking) {
@@ -387,8 +401,20 @@ void updateEngine() {
     effectiveThrottle = min(throttle, ASC_MAX_THROTTLE);
   }
 
-  if (engineRunning) {
+  // Wheels: driven by the engine only with a gear in and the clutch out
+  bool engineConnected = engineRunning && gear != 0 && !clutchPressed;
+
+  // Park brake against the engine: with too little throttle the brake wins
+  bool brakeWins = parkBrake && engineConnected && effectiveThrottle < PARK_BRAKE_CREEP_THROTTLE;
+
+  // Engine: moves towards the RPM the throttle asks for
+  if (engineRunning && !brakeWins) {
     float targetRpm = IDLE_RPM + (MAX_RPM - IDLE_RPM) * effectiveThrottle / 9.0f;
+
+    // Lots of throttle against the brake: the engine wins, but only just
+    if (parkBrake && engineConnected) {
+      targetRpm = min(targetRpm, PARK_BRAKE_MAX_RPM);
+    }
 
     if (rpm < targetRpm) {
       rpm = min(rpm + RPM_RISE, targetRpm);
@@ -397,19 +423,33 @@ void updateEngine() {
       rpm = max(rpm - RPM_FALL, targetRpm);
     }
   }
-  else {
+  else if (!engineRunning) {
     rpm = 0;
   }
 
-  // Wheels: driven by the engine only with a gear in and the clutch out
-  bool engineConnected = engineRunning && gear != 0 && !clutchPressed;
-  if (engineConnected) {
+  if (brakeWins) {
+    // The brake slows the car, and the engine is dragged down with the wheels
+    kmh = max(kmh - PARK_BRAKE_DECEL, 0.0f);
+    rpm = rpmFromSpeed(kmh, gear);
+    if (rpm < STALL_RPM) {
+      stallEngine("the park brake is on");
+    }
+  }
+  else if (engineConnected) {
     kmh = speedFromRpm(rpm, gear);
   }
   else {
-    // Rolling freely: the car slowly loses speed
-    kmh = max(kmh - COAST_DECEL, 0.0f);
+    // Rolling freely: the car loses speed, much faster with the park brake on
+    float decel = parkBrake ? PARK_BRAKE_DECEL : COAST_DECEL;
+    kmh = max(kmh - decel, 0.0f);
   }
+
+  // Warn once when driving with the park brake on
+  bool shouldWarn = parkBrake && kmh > PARK_BRAKE_WARN_KMH;
+  if (shouldWarn && !parkBrakeWarned) {
+    Serial.println("Warning: the park brake is on!");
+  }
+  parkBrakeWarned = shouldWarn;
 }
 
 // Sends rpm and kmh to the cluster

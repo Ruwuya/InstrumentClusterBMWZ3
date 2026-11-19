@@ -96,7 +96,7 @@ Serial monitor at **115200 baud**. Single keys act straight away. Commands start
 | `,` | Left turn signal on/off |
 | `.` | Right turn signal on/off |
 | `h` | Hazards on/off |
-| `p` | Park brake on/off (starts on) |
+| `p` | Park brake on/off (starts on). Holds the car: stalls the engine, brakes hard, creeps with throttle 7+ |
 | `a` | ASC on/off (light flashes on wheelspin, solid when off) |
 | `b` | High beam on/off |
 | `f` | Fog lights on/off |
